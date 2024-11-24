@@ -210,7 +210,7 @@ public class LanguageServer
     {
         string extensionBaseUrl =
             (_package.SettingsPage.ExtensionBaseUrl.Equals("")
-                 ? "https://github.com/Khulnasoft/khulnasoft/releases/download"
+                 ? "https://github.com/khulnasoft/khulnasoft/releases/download"
                  : _package.SettingsPage.ExtensionBaseUrl.Trim().TrimEnd('/'));
 
         if (_package.SettingsPage.EnterpriseMode)
@@ -230,7 +230,7 @@ public class LanguageServer
             catch (Exception)
             {
                 await _package.LogAsync("Failed to get extension base url");
-                extensionBaseUrl = "https://github.com/Khulnasoft/khulnasoft/releases/download";
+                extensionBaseUrl = "https://github.com/khulnasoft/khulnasoft/releases/download";
             }
         }
 

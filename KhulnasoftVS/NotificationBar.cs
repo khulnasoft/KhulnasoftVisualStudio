@@ -32,7 +32,7 @@ public class NotificationInfoBar : IVsInfoBarUIEvents, IVsShellPropertyEvents
             "Report issue on GitHub",
             delegate {
                 KhulnasoftVSPackage.OpenInBrowser(
-                    "https://github.com/Khulnasoft/KhulnasoftVisualStudio/issues/new");
+                    "https://github.com/khulnasoft/KhulnasoftVisualStudio/issues/new");
             }),
     ];
 

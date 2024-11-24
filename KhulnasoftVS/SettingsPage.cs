@@ -9,7 +9,7 @@ public class SettingsPage : DialogPage
     private bool enterpriseMode;
     private string portalUrl = "";
     private string apiUrl = "";
-    private string extensionBaseUrl = "https://github.com/Khulnasoft/khulnasoft/releases/download";
+    private string extensionBaseUrl = "https://github.com/khulnasoft/khulnasoft/releases/download";
     private bool enableCommentCompletion = true;
     private bool enableLanguageServerProxy = false;
     private bool enableIndexing = true;
@@ -46,7 +46,7 @@ public class SettingsPage : DialogPage
     [Category("Khulnasoft")]
     [DisplayName("Language Server Download URL")]
     [Description(
-        "If you're experiencing network issues with GitHub and can't download the language server, please change this to a GitHub Mirror URL instead. For example: https://gh.api.99988866.xyz/https://github.com/Khulnasoft/khulnasoft/releases/download")]
+        "If you're experiencing network issues with GitHub and can't download the language server, please change this to a GitHub Mirror URL instead. For example: https://gh.api.99988866.xyz/https://github.com/khulnasoft/khulnasoft/releases/download")]
     public string ExtensionBaseUrl
     {
         get {

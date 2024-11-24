@@ -2,7 +2,7 @@
 
 [![Discord](https://img.shields.io/discord/1027685395649015980?label=community&color=5865F2&logo=discord&logoColor=FFFFFF)](https://discord.gg/3XFf78nAx5)
 [![Twitter Follow](https://img.shields.io/badge/style--blue?style=social&logo=twitter&label=Follow%20%40khulnasoftdev)](https://twitter.com/intent/follow?screen_name=khulnasoftdev)
-![License](https://img.shields.io/github/license/Khulnasoft/KhulnasoftVisualStudio)
+![License](https://img.shields.io/github/license/khulnasoft/KhulnasoftVisualStudio)
 [![Docs](https://img.shields.io/badge/Khulnasoft%20Docs-09B6A2)](https://docs.khulnasoft.com)
 [![Canny Board](https://img.shields.io/badge/Feature%20Requests-6b69ff)](https://khulnasoft.canny.io/feature-requests/)
 [![built with Khulnasoft](https://khulnasoft.com/badges/main)](https://khulnasoft.com?repo_name=khulnasoft%2FKhulnasoftVisualStudio)
@@ -93,9 +93,9 @@ Ever feels like warnings and errors are too verbose? Khulnasoft can explain like
 - You can press <kbd>F5</kbd> to debug the extension on a separate instance of Visual Studio. Consult the [official guide](https://learn.microsoft.com/en-us/visualstudio/extensibility/starting-to-develop-visual-studio-extensions?view=vs-2022) for more information.
 
 # How to help
-Feel free to [submit issues](https://github.com/Khulnasoft/KhulnasoftVisualStudio/issues/new) related to the extension so that we can better improve your experiences.
+Feel free to [submit issues](https://github.com/khulnasoft/KhulnasoftVisualStudio/issues/new) related to the extension so that we can better improve your experiences.
 
-We greatly value your input and invite you to contribute to our project. To do so, kindly [initiate a pull request](https://github.com/Khulnasoft/KhulnasoftVisualStudio/compare). Your expertise and insights are much appreciated.
+We greatly value your input and invite you to contribute to our project. To do so, kindly [initiate a pull request](https://github.com/khulnasoft/KhulnasoftVisualStudio/compare). Your expertise and insights are much appreciated.
 
 # Documentation
 For more information on how to install and use the extension, please see [the documentation](/docs/).
