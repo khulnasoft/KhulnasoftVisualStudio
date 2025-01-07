@@ -3,12 +3,20 @@ name: Build Extension
 on:
   push:
     branches: [ "main" ]
+    tags:
+      - enterprise-release-v*
   pull_request:
     branches: [ "main" ]
 
 jobs:
   build:
+    permissions:
+     contents: 'read'
+     id-token: 'write'
     runs-on: windows-latest
+    if: |
+      (github.event_name == 'push' && github.ref_type == 'branch') ||
+      (github.event_name == 'push' && github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/enterprise-release-v'))
     steps:
     - name: Checkout
       uses: actions/checkout@v3
@@ -25,5 +33,41 @@ jobs:
     - name: Restore Packages
       run: nuget restore KhulnasoftVS.sln
 
+    - name: Set Release Condition
+      id: check_release
+      run: |
+        $isRelease = "${{ github.event_name == 'push' && github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/enterprise-release-v') && (github.actor == 'khulnasoft-bot' || github.actor == 'gitworkflows') }}"
+        echo "IS_RELEASE=$isRelease" | Out-File -FilePath $env:GITHUB_ENV -Append
+        if ($isRelease -eq 'true') {
+          $tag = "${{ github.ref_name }}"
+          $version = $tag -replace 'enterprise-release-v',''
+          echo "VSIX_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+        }
+
+    - name: Update VSIX Version
+      if: env.IS_RELEASE == 'true'
+      run: |
+        $manifestPath = "KhulnasoftVS/source.extension.vsixmanifest"
+        $xml = [xml](Get-Content $manifestPath)
+        $xml.PackageManifest.Metadata.Identity.Version = "${{ env.VSIX_VERSION }}"
+        $xml.Save($manifestPath)
+
     - name: Build Solution
       run: msbuild KhulnasoftVS.sln /p:Configuration=Release /p:Platform="Any CPU" /p:TargetFrameworkVersion="v4.8" /restore
+
+    - id: auth
+      if: env.IS_RELEASE == 'true'
+      uses: google-github-actions/auth@v2
+      timeout-minutes: 1
+      with:
+        workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+        service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+    - name: Upload Khulnasoft Visual Studio VSIX
+      if: env.IS_RELEASE == 'true'
+      uses: google-github-actions/upload-cloud-storage@v2
+      with:
+        path: KhulnasoftVS/bin/Release/Khulnasoft.vsix
+        process_gcloudignore: false
+        destination: khulnasoft-dist/khulnasoft_visual_studio/${{ github.ref_name }}
+        gzip: false
