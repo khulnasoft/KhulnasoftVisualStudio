@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
@@ -32,7 +32,11 @@ namespace KhulnasoftVS
         public bool IsKhulnasoftCodeLensActive() => KhulnasoftVSPackage.Instance != null && KhulnasoftVSPackage.Instance.SettingsPage.EnableCodeLens;
         FunctionInfo GetClosestFunction(IList<Packets.FunctionInfo>? functions, int line)
         {
-            
+            if (functions == null)
+            {
+                return null;
+            }
+
             FunctionInfo minFunction = null;
             int minDistance = int.MaxValue;
             foreach (var f in functions)
@@ -92,8 +96,7 @@ namespace KhulnasoftVS
             }
             catch (Exception ex)
             {
-                KhulnasoftVSPackage.Instance.LogAsync(ex.ToString());
-
+                await KhulnasoftVSPackage.Instance.LogAsync($"Error in LoadInstructions: {ex}");
                 return null;
             }
         }

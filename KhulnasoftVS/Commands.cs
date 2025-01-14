@@ -1,4 +1,4 @@
-﻿using Microsoft.VisualStudio.Text;
+using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Text.Formatting;
 using Microsoft.VisualStudio.TextManager.Interop;
@@ -308,41 +308,49 @@ internal class CommandRefactorCodeBlock : BaseCommandContextMenu<CommandRefactor
 
     protected override async Task ExecuteAsync(OleMenuCmdEventArgs e)
     {
-        // get the caret screen position and create the dialog at that position
-        TextBounds caretLine = docView.TextView.TextViewLines.GetCharacterBounds(
-            docView.TextView.Caret.Position.BufferPosition);
-        Point caretScreenPos = docView.TextView.VisualElement.PointToScreen(
-            new Point(caretLine.Left - docView.TextView.ViewportLeft,
-                      caretLine.Top - docView.TextView.ViewportTop));
-
-        // highlight the selected codeblock
-        TextHighlighter? highlighter = TextHighlighter.GetInstance(docView.TextView);
-        highlighter?.AddHighlight(start_position, end_position - start_position);
-        var dialog = RefactorCodeDialogWindow.GetOrCreate();
-        string? prompt =
-            await dialog.ShowAndGetPromptAsync(languageInfo, caretScreenPos.X, caretScreenPos.Y);
-
-        highlighter?.ClearAll();
-
-        // user did not select any of the prompt
-        if (prompt == null) return;
-
-        LanguageServerController controller =
-            (Package as KhulnasoftVSPackage).LanguageServer.Controller;
-        if (is_function)
+        try
         {
-            FunctionInfo? functionInfo = await GetFunctionInfoAsync();
+            // get the caret screen position and create the dialog at that position
+            TextBounds caretLine = docView.TextView.TextViewLines.GetCharacterBounds(
+                docView.TextView.Caret.Position.BufferPosition);
+            Point caretScreenPos = docView.TextView.VisualElement.PointToScreen(
+                new Point(caretLine.Left - docView.TextView.ViewportLeft,
+                        caretLine.Top - docView.TextView.ViewportTop));
 
-            if (functionInfo != null)
-                await controller.RefactorFunctionAsync(
-                    prompt, docView.Document.FilePath, functionInfo);
-            
+            // highlight the selected codeblock
+            TextHighlighter? highlighter = TextHighlighter.GetInstance(docView.TextView);
+            highlighter?.AddHighlight(start_position, end_position - start_position);
+            var dialog = RefactorCodeDialogWindow.GetOrCreate();
+            string? prompt =
+                await dialog.ShowAndGetPromptAsync(languageInfo, caretScreenPos.X, caretScreenPos.Y);
+
+            highlighter?.ClearAll();
+
+            // user did not select any of the prompt
+            if (prompt == null) return;
+
+            LanguageServerController controller =
+                (Package as KhulnasoftVSPackage).LanguageServer.Controller;
+            if (is_function)
+            {
+                FunctionInfo? functionInfo = await GetFunctionInfoAsync();
+
+                if (functionInfo != null)
+                    await controller.RefactorFunctionAsync(
+                        prompt, docView.Document.FilePath, functionInfo);
+
+            }
+            else
+            {
+                CodeBlockInfo codeBlockInfo = GetCodeBlockInfo();
+                await controller.RefactorCodeBlockAsync(
+                    prompt, docView.Document.FilePath, languageInfo.Type, codeBlockInfo);
+            }
         }
-        else
+        catch (Exception ex)
         {
-            CodeBlockInfo codeBlockInfo = GetCodeBlockInfo();
-            await controller.RefactorCodeBlockAsync(
-                prompt, docView.Document.FilePath, languageInfo.Type, codeBlockInfo);
+            await KhulnasoftVSPackage.Instance.LogAsync(
+                $"CommandRefactorCodeBlock: Failed to refactor code block; Exception: {ex}");
         }
     }
 }

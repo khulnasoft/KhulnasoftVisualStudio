@@ -1,4 +1,4 @@
-﻿using KhulnasoftVS;
+using KhulnasoftVS;
 using KhulnasoftVS.Utilities;
 using EnvDTE;
 using EnvDTE80;
@@ -124,69 +124,76 @@ internal class InlineDiffAdornment : TextViewExtension<IWpfTextView, InlineDiffA
     /// </param>
     public async Task CreateDiffAsync(int position, int length, string replacement)
     {
-        await DisposeDiffAsync();
-
-        // for the OpenDocumentViaProject and IsPeekOnAdornment
-        await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-
-        Assumes.True(position > 0 && length > 0 &&
-                         (position + length) <= _hostView.TextSnapshot.Length,
-                     "InlineDiffAdornment.CreateDiff: Invalid position and length parameter");
-        Assumes.True(
-            MefProvider.Instance.TextDocumentFactoryService.TryGetTextDocument(
-                _hostView.TextDataModel.DocumentBuffer, out var textDocument),
-            "InlineDiffAdornment.CreateDiff: Could not get text document for the current host view");
-
-        // create a temporary file to store the diff
-        string rightFileName = Path.GetTempFileName() + Path.GetExtension(textDocument.FilePath);
         try
         {
-            // create the projection buffers, left projects onto host view, right projects onto a
-            // temp file
-            CreateLeftProjectionBuffer(position, length);
-            CreateRightProjectionBuffer(rightFileName, position, length, replacement);
+            await DisposeDiffAsync();
 
-            _adornment = new InlineDiffView(_hostView,
-                                            _leftProjectionBuffer,
-                                            _hostView.TextDataModel.DocumentBuffer,
-                                            _rightProjectionBuffer,
-                                            _rightSourceBuffer);
+            // for the OpenDocumentViaProject and IsPeekOnAdornment
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+
+            Assumes.True(position > 0 && length > 0 &&
+                            (position + length) <= _hostView.TextSnapshot.Length,
+                        "InlineDiffAdornment.CreateDiff: Invalid position and length parameter");
+            Assumes.True(
+                MefProvider.Instance.TextDocumentFactoryService.TryGetTextDocument(
+                    _hostView.TextDataModel.DocumentBuffer, out var textDocument),
+                "InlineDiffAdornment.CreateDiff: Could not get text document for the current host view");
+
+            // create a temporary file to store the diff
+            string rightFileName = Path.GetTempFileName() + Path.GetExtension(textDocument.FilePath);
+            try
+            {
+                // create the projection buffers, left projects onto host view, right projects onto a
+                // temp file
+                CreateLeftProjectionBuffer(position, length);
+                CreateRightProjectionBuffer(rightFileName, position, length, replacement);
+
+                _adornment = new InlineDiffView(_hostView,
+                                                _leftProjectionBuffer,
+                                                _hostView.TextDataModel.DocumentBuffer,
+                                                _rightProjectionBuffer,
+                                                _rightSourceBuffer);
+            }
+            catch (Exception ex)
+            {
+                await KhulnasoftVSPackage.Instance?.LogAsync(
+                    $"InlineDiffAdornment.CreateDiffAsync: Exception: {ex}");
+                await DisposeDiffAsync();
+                return;
+            }
+
+            _adornment.VisualElement.GotFocus += Adornment_OnGotFocus;
+            _adornment.VisualElement.LostFocus += Adornment_OnLostFocus;
+            _adornment.VisualElement.SizeChanged += Adornment_OnSizeChanged;
+            _adornment.VisualElement.OnAccepted = Adornment_OnAccepted;
+            _adornment.VisualElement.OnRejected = Adornment_OnRejected;
+
+            // set the scale factor for CrispImage, without this, it'll be blurry
+            _adornment.VisualElement.SetValue(CrispImage.ScaleFactorProperty,
+                                            _hostView.ZoomLevel * 0.01);
+
+            // close the peek view if it's open
+            if (!_hostView.Roles.Contains(PredefinedTextViewRoles.EmbeddedPeekTextView) &&
+                IsPeekOnAdornment())
+                MefProvider.Instance.PeekBroker.DismissPeekSession(_hostView);
+
+            // close any auto completion windows that's open
+            if (MefProvider.Instance.CompletionBroker.IsCompletionActive(_hostView))
+                MefProvider.Instance.CompletionBroker.DismissAllSessions(_hostView);
+
+            // the same for the async completions
+            if (MefProvider.Instance.AsyncCompletionBroker.IsCompletionActive(_hostView))
+                MefProvider.Instance.AsyncCompletionBroker.GetSession(_hostView)?.Dismiss();
+
+            CalculateExtendedTrackingSpan(position, length);
+            CalculateCodeBlockHeight();
+            RefreshLineTransform();
+            UpdateAdornment();
         }
         catch (Exception ex)
         {
-            await KhulnasoftVSPackage.Instance?.LogAsync(
-                $"InlineDiffAdornment.CreateDiffAsync: Exception: {ex}");
-            await DisposeDiffAsync();
-            return;
+            await KhulnasoftVSPackage.Instance?.LogAsync($"Error in CreateDiffAsync: {ex}");
         }
-
-        _adornment.VisualElement.GotFocus += Adornment_OnGotFocus;
-        _adornment.VisualElement.LostFocus += Adornment_OnLostFocus;
-        _adornment.VisualElement.SizeChanged += Adornment_OnSizeChanged;
-        _adornment.VisualElement.OnAccepted = Adornment_OnAccepted;
-        _adornment.VisualElement.OnRejected = Adornment_OnRejected;
-
-        // set the scale factor for CrispImage, without this, it'll be blurry
-        _adornment.VisualElement.SetValue(CrispImage.ScaleFactorProperty,
-                                          _hostView.ZoomLevel * 0.01);
-
-        // close the peek view if it's open
-        if (!_hostView.Roles.Contains(PredefinedTextViewRoles.EmbeddedPeekTextView) &&
-            IsPeekOnAdornment())
-            MefProvider.Instance.PeekBroker.DismissPeekSession(_hostView);
-
-        // close any auto completion windows that's open
-        if (MefProvider.Instance.CompletionBroker.IsCompletionActive(_hostView))
-            MefProvider.Instance.CompletionBroker.DismissAllSessions(_hostView);
-
-        // the same for the async completions
-        if (MefProvider.Instance.AsyncCompletionBroker.IsCompletionActive(_hostView))
-            MefProvider.Instance.AsyncCompletionBroker.GetSession(_hostView)?.Dismiss();
-
-        CalculateExtendedTrackingSpan(position, length);
-        CalculateCodeBlockHeight();
-        RefreshLineTransform();
-        UpdateAdornment();
     }
 
     public void CreateDiff(int position, int length, string replacement)

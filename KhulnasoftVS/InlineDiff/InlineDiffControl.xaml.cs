@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 
@@ -56,9 +56,29 @@ public partial class InlineDiffControl : UserControl
             new GridLength(ContentBorder.Margin.Left + _inlineDiffView.LeftView.ViewportWidth);
     }
 
-    private void ButtonReject_Click(object sender, RoutedEventArgs e) { OnRejected?.Invoke(); }
+    private void ButtonReject_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            OnRejected?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            KhulnasoftVSPackage.Instance?.Log($"Error in ButtonReject_Click: {ex}");
+        }
+    }
 
-    private void ButtonAccept_Click(object sender, RoutedEventArgs e) { OnAccepted?.Invoke(); }
+    private void ButtonAccept_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            OnAccepted?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            KhulnasoftVSPackage.Instance?.Log($"Error in ButtonAccept_Click: {ex}");
+        }
+    }
 
     private void UserControl_PreviewKeyDown(object sender, KeyEventArgs e)
     {

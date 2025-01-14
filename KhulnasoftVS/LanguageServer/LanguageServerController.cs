@@ -76,6 +76,12 @@ public class LanguageServerController
 
         GetProcessesResponse? result = await Package.LanguageServer.GetProcessesAsync();
 
+        if (result == null)
+        {
+            Package.Log("Language Server Controller: Failed to get processes.");
+            return;
+        }
+
         ws = new WebSocket($"ws://127.0.0.1:{result.chatWebServerPort}/connect/ide");
         ws.OnOpen += OnOpen;
         ws.OnClose += OnClose;
