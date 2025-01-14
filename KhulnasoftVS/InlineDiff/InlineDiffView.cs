@@ -1,4 +1,4 @@
-﻿using KhulnasoftVS.Utilities;
+using KhulnasoftVS.Utilities;
 using Microsoft;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Editor;
@@ -177,82 +177,91 @@ internal class InlineDiffView
                                             out FrameworkElement visualElement,
                                             out IWpfTextViewHost textViewHost)
     {
-        // create the VS text view
-        IVsTextView vsTextView =
-            MefProvider.Instance.EditorAdaptersFactoryService.CreateVsTextViewAdapter(
-                MefProvider.Instance.OleServiceProvider);
-
-        // should not happen
-        if (vsTextView is not IVsUserData codeWindowData)
-            throw new InvalidOperationException(
-                "Creating DifferenceViewerWithAdapters failed: Unable to cast IVsTextView to IVsUserData.");
-
-        // set the roles and text view model for it
-        SetRolesAndModel(codeWindowData, textViewModel, roles);
-
-        // manually set the default properties for the text view
-        if (vsTextView is IVsTextEditorPropertyCategoryContainer vsTextEditorProps)
+        try
         {
-            Guid rguidCategory = DefGuidList.guidEditPropCategoryViewMasterSettings;
-            if (ErrorHandler.Succeeded(
-                    vsTextEditorProps.GetPropertyCategory(ref rguidCategory, out var ppProp)))
+            // create the VS text view
+            IVsTextView vsTextView =
+                MefProvider.Instance.EditorAdaptersFactoryService.CreateVsTextViewAdapter(
+                    MefProvider.Instance.OleServiceProvider);
+
+            // should not happen
+            if (vsTextView is not IVsUserData codeWindowData)
+                throw new InvalidOperationException(
+                    "Creating DifferenceViewerWithAdapters failed: Unable to cast IVsTextView to IVsUserData.");
+
+            // set the roles and text view model for it
+            SetRolesAndModel(codeWindowData, textViewModel, roles);
+
+            // manually set the default properties for the text view
+            if (vsTextView is IVsTextEditorPropertyCategoryContainer vsTextEditorProps)
             {
-                ppProp.SetProperty(VSEDITPROPID.VSEDITPROPID_ViewComposite_AllCodeWindowDefaults,
-                                   true);
+                Guid rguidCategory = DefGuidList.guidEditPropCategoryViewMasterSettings;
+                if (ErrorHandler.Succeeded(
+                        vsTextEditorProps.GetPropertyCategory(ref rguidCategory, out var ppProp)))
+                {
+                    ppProp.SetProperty(VSEDITPROPID.VSEDITPROPID_ViewComposite_AllCodeWindowDefaults,
+                                       true);
+                }
             }
+
+            IVsTextLines vsTextLines =
+                (IVsTextLines)MefProvider.Instance.EditorAdaptersFactoryService.GetBufferAdapter(
+                    textViewModel.DataModel.DocumentBuffer);
+
+            Assumes.NotNull(vsTextLines);
+
+            // initialize the vs text view
+            INITVIEW initOptions = new() {
+                fSelectionMargin = 0u, fWidgetMargin = 0u, fVirtualSpace = 0u, fDragDropMove = 1u
+            };
+
+            uint initFlags =
+                (uint)TextViewInitFlags3.VIF_NO_HWND_SUPPORT | (uint)TextViewInitFlags.VIF_HSCROLL;
+            vsTextView.Initialize(vsTextLines, IntPtr.Zero, initFlags, [initOptions]);
+
+            // get the text view host of the vs text view
+            textViewHost =
+                MefProvider.Instance.EditorAdaptersFactoryService.GetWpfTextViewHost(vsTextView);
+            visualElement = textViewHost.HostControl;
+
+            IWpfTextView textView = textViewHost.TextView;
+            InitializeView(textView, textViewHost);
+
+            // disable line number, only for the left view
+            if (textViewModel.ViewType == DifferenceViewType.LeftView)
+            {
+                LeftVsView = vsTextView;
+                LeftTextLines = vsTextLines;
+                textView.Options.SetOptionValue(DefaultTextViewHostOptions.LineNumberMarginId, false);
+                textView.Options.SetOptionValue(DefaultTextViewHostOptions.SuggestionMarginId, false);
+
+                textView.VisualElement.GotFocus += LeftView_OnGotFocus;
+                textView.VisualElement.LostFocus += LeftView_OnLostFocus;
+                textView.Caret.PositionChanged += LeftView_OnCaretPositionChanged;
+                textView.Closed += LeftView_OnClosed;
+            }
+            else if (textViewModel.ViewType == DifferenceViewType.RightView)
+            {
+                RightVsView = vsTextView;
+                RightTextLines = vsTextLines;
+                textView.VisualElement.GotFocus += RightView_OnGotFocus;
+                textView.VisualElement.LostFocus += RightView_OnLostFocus;
+                textView.Caret.PositionChanged += RightView_OnCaretPositionChanged;
+                textView.Closed += RightView_OnClosed;
+            }
+            else { throw new InvalidOperationException("Unknow difference viewer mode"); }
+
+            textView.Closed += DiffView_OnClosed;
+            textView.LayoutChanged += DiffView_OnLayoutChanged;
+            textView.ViewportHeightChanged += DiffView_OnViewportHeightChanged;
+            textView.VisualElement.PreviewMouseWheel += DiffView_OnPreviewMouseWheel;
         }
-
-        IVsTextLines vsTextLines =
-            (IVsTextLines)MefProvider.Instance.EditorAdaptersFactoryService.GetBufferAdapter(
-                textViewModel.DataModel.DocumentBuffer);
-
-        Assumes.NotNull(vsTextLines);
-
-        // initialize the vs text view
-        INITVIEW initOptions = new() {
-            fSelectionMargin = 0u, fWidgetMargin = 0u, fVirtualSpace = 0u, fDragDropMove = 1u
-        };
-
-        uint initFlags =
-            (uint)TextViewInitFlags3.VIF_NO_HWND_SUPPORT | (uint)TextViewInitFlags.VIF_HSCROLL;
-        vsTextView.Initialize(vsTextLines, IntPtr.Zero, initFlags, [initOptions]);
-
-        // get the text view host of the vs text view
-        textViewHost =
-            MefProvider.Instance.EditorAdaptersFactoryService.GetWpfTextViewHost(vsTextView);
-        visualElement = textViewHost.HostControl;
-
-        IWpfTextView textView = textViewHost.TextView;
-        InitializeView(textView, textViewHost);
-
-        // disable line number, only for the left view
-        if (textViewModel.ViewType == DifferenceViewType.LeftView)
+        catch (Exception ex)
         {
-            LeftVsView = vsTextView;
-            LeftTextLines = vsTextLines;
-            textView.Options.SetOptionValue(DefaultTextViewHostOptions.LineNumberMarginId, false);
-            textView.Options.SetOptionValue(DefaultTextViewHostOptions.SuggestionMarginId, false);
-
-            textView.VisualElement.GotFocus += LeftView_OnGotFocus;
-            textView.VisualElement.LostFocus += LeftView_OnLostFocus;
-            textView.Caret.PositionChanged += LeftView_OnCaretPositionChanged;
-            textView.Closed += LeftView_OnClosed;
+            KhulnasoftVSPackage.Instance?.Log(
+                $"InlineDiffView.CreateTextViewHostCallback: Exception: {ex}");
+            throw;
         }
-        else if (textViewModel.ViewType == DifferenceViewType.RightView)
-        {
-            RightVsView = vsTextView;
-            RightTextLines = vsTextLines;
-            textView.VisualElement.GotFocus += RightView_OnGotFocus;
-            textView.VisualElement.LostFocus += RightView_OnLostFocus;
-            textView.Caret.PositionChanged += RightView_OnCaretPositionChanged;
-            textView.Closed += RightView_OnClosed;
-        }
-        else { throw new InvalidOperationException("Unknow difference viewer mode"); }
-
-        textView.Closed += DiffView_OnClosed;
-        textView.LayoutChanged += DiffView_OnLayoutChanged;
-        textView.ViewportHeightChanged += DiffView_OnViewportHeightChanged;
-        textView.VisualElement.PreviewMouseWheel += DiffView_OnPreviewMouseWheel;
     }
 
     /// <summary>
