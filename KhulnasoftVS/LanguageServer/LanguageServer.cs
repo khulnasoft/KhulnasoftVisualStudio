@@ -1,4 +1,4 @@
-﻿using KhulnasoftVS.Packets;
+using KhulnasoftVS.Packets;
 using EnvDTE;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Imaging;
@@ -122,9 +122,7 @@ public class LanguageServer
         RegisterUserRequest data = new() { firebase_id_token = authToken };
         RegisterUserResponse result = await RequestUrlAsync<RegisterUserResponse>(url, data);
 
-        _metadata.api_key = result.api_key;
-
-        if (_metadata.api_key == null)
+        if (result.api_key == null)
         {
             await _package.LogAsync("Failed to sign in.");
 
@@ -141,6 +139,8 @@ public class LanguageServer
 
             return;
         }
+
+        _metadata.api_key = result.api_key;
 
         File.WriteAllText(_package.GetAPIKeyPath(), _metadata.api_key);
         await _package.LogAsync("Signed in successfully");
